@@ -1,0 +1,11 @@
+profile: profiles/example-2026.yml
+number: INV-2026-09/01
+date: 2026-09-21
+signature: "" # PNG path or manual placeholder; empty or omitted hides the signature.
+works:
+  - description: Software development and consulting
+    amount: "2293.00"
+  - description: Travel expenses reimbursement
+    amount: "125.40"
+  - description: Additional development work
+    amount: "300.00"

@@ -36,12 +36,13 @@ The command creates this structure relative to the current working directory:
 
 ```text
 .
-├── profiles/
-├── invoices/
+├── profiles/profiles.yml
+├── invoices/invoice.yml
+├── README.md
 └── output/
 ```
 
-`init` succeeds when any of these directories already exist and leaves their contents unchanged. It returns an error when one of the paths exists but is not a directory. It does not create example profiles or invoice specifications and never replaces user files.
+`init` succeeds when any of these directories already exist and leaves their contents unchanged. It returns an error when one of the paths exists but is not a directory. It creates an example profile at `profiles/profiles.yml`, an invoice specification at `invoices/invoice.yml`, and a short `README.md` with commands and YAML examples. These templates are embedded in the binary. Existing files are never replaced.
 
 `profiles/`, `invoices/`, and `output/` are the default workspace locations, not hard requirements. CLI options allow callers to override input and output paths.
 
@@ -70,6 +71,7 @@ issuer:
       - Example Country
     correspondent_bank:
       name: Example Correspondent Bank
+      account: "000123456789"
       swift_bic: CORRESPONDENT-SWIFT-BIC
 
 customer:
@@ -82,6 +84,9 @@ customer:
 
 currency: EUR
 
+# Optional: PNG path (profiles/signature.png), manual placeholder ("________________"), or empty.
+default_signature: ""
+
 default_works:
   - description: Software development and consulting
     amount: "2293.00"
@@ -89,7 +94,7 @@ default_works:
 
 `issuer` is the person or company issuing the invoice and receiving payment. `customer` is the company being billed. The values above are placeholders, not real personal or company data.
 
-The issuer and customer names and addresses are required. The issuer bank beneficiary, IBAN, SWIFT/BIC, name, and address are also required. The bank name and address are separate fields so the PDF can label them correctly. `correspondent_bank` is optional. When present, both its `name` and `swift_bic` are required. `customer.vat_number` is optional and is printed with the billing address when provided. `default_works` must contain at least one work item with a non-empty description and a positive decimal amount.
+The issuer and customer names and addresses are required. The issuer bank beneficiary, IBAN, SWIFT/BIC, name, and address are also required. The bank name and address are separate fields so the PDF can label them correctly. `correspondent_bank` is optional. When present, both its `name` and `swift_bic` are required. Its optional `account` is a string printed as the correspondent account in the PDF; quote it to preserve leading zeros. `customer.vat_number` is optional and is printed with the billing address when provided. `default_works` must contain at least one work item with a non-empty description and a positive decimal amount.
 
 Profiles are immutable after they have been referenced by an invoice specification. When details change, create a new profile such as `companyname-2027.yml` instead of editing `companyname-2026.yml`. This keeps old invoices reproducible.
 
@@ -102,6 +107,7 @@ profile: profiles/companyname-2026.yml
 
 number: INV-2026-09/01
 date: 2026-09-21
+signature: "" # PNG path or manual placeholder; empty or omitted hides the signature.
 
 works:
   - description: Software development and consulting
@@ -116,14 +122,16 @@ works:
 
 The `works` list is final and is the only source of invoice line items during validation and rendering. The template command copies `default_works` into `works`, after which the two lists are independent. Editing a generated specification never changes its profile, and later profile changes never alter an existing specification.
 
+The optional profile `default_signature` is copied verbatim into the invoice's `signature` by `new`, just like work defaults. Validation and rendering never fall back to the profile default. An empty or omitted invoice `signature` hides the signature block. A value ending in `.png` (case-insensitive) is a PNG path resolved from the working directory with the same workspace confinement as profile paths, including symlinks. Missing or invalid images are errors before writing output. Transparent PNGs are supported and scaled proportionally to fit 50 × 20 mm. Any other nonempty string is printed verbatim after `Signature:` as a manual-signature placeholder, for example `"________________"`. Both text and image signatures count toward the single-page limit. Keep referenced signature images immutable and use versioned filenames for changes. Only the path is copied, not the image bytes. This is an image, not a cryptographic digital signature.
+
 The total is derived from `works` and is never stored in the specification. Amounts are quoted decimal strings so the application can parse them without binary floating-point rounding.
 
 The recommended invoice number format is `INV-{YYYY}-{MM}/{INDEX}`. The number and date are set explicitly in each specification. The application does not persist or increment the index automatically.
 
-The slash in the invoice number cannot be used directly in a filename. The default PDF path converts it to a double hyphen:
+The slash in the invoice number cannot be used directly in a filename. The default PDF path preserves the number exactly, converting only `/` to `--` and appending `.pdf`:
 
 ```text
-INV-2026-09/01 -> output/invoice-2026-09--01.pdf
+INV-2026-09/01 -> output/INV-2026-09--01.pdf
 ```
 
 ## Command-Line Application
@@ -202,7 +210,7 @@ The renderer produces one A4 page with:
 3. Customer details under a `BILL TO` heading, including the VAT number when provided.
 4. A table containing work descriptions and amounts.
 5. A calculated total.
-6. The invoice date and a signature line.
+6. The invoice date and an optional signature image or manual-signature placeholder, with no signature block when omitted.
 
 The layout should follow the supplied example while using consistent margins, typography, and thin table borders. Content that exceeds one page is an error rather than an implicit second page.
 

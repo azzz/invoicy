@@ -1,0 +1,37 @@
+issuer:
+  name: Example Issuer Ltd
+  address:
+    - 10 Example Street
+    - Berlin, 10115
+    - Germany
+  tax_id: EXAMPLE-TAX-ID
+  bank:
+    beneficiary: Example Issuer Ltd
+    iban: DE89370400440532013000
+    swift_bic: COBADEFFXXX
+    name: Example Bank
+    address:
+      - 20 Bank Street
+      - Berlin, 10117
+      - Germany
+    correspondent_bank:
+      name: Example Correspondent Bank
+      account: "000123456789"
+      swift_bic: DEUTDEFF
+
+customer:
+  name: Example Customer Ltd
+  address:
+    - 30 Customer Street
+    - Dublin, D02 EX00
+    - Ireland
+  vat_number: EXAMPLE-VAT-NUMBER
+
+currency: EUR
+
+# Optional: PNG path (profiles/signature.png), manual placeholder ("________________"), or empty.
+default_signature: ""
+
+default_works:
+  - description: Software development and consulting
+    amount: "2293.00"
