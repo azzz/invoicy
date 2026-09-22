@@ -1,4 +1,4 @@
 /invoicy
-/output/
-/examples/output/
+
 *.pdf
+!/examples/output/INV-2026-09--01.pdf

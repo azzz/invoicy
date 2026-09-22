@@ -4,7 +4,7 @@
 
 Invoicy is a standalone local Go CLI that initializes workspaces, creates invoice specification templates, and renders single-page PDF invoices from YAML profiles and invoice specifications. The project has no web service, database, or automatic invoice sequence tracking.
 
-Read `docs/implementation-plan.md` before changing data formats, package boundaries, or delivery scope.
+Read `docs/design.md` before changing data formats, package boundaries, or delivery scope.
 
 ## Service Map
 

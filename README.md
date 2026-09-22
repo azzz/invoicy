@@ -2,6 +2,8 @@
 
 A local Go CLI for creating invoice specifications in YAML and rendering single-page A4 PDF invoices. No server, database, or invoice counter is required.
 
+See the [example PDF invoice](examples/output/INV-2026-09--01.pdf).
+
 ## Install
 
 Requires Go 1.26.4 or later.
@@ -75,7 +77,7 @@ invoicy render invoices/second.yml --output output/custom-name.pdf
 - YAML must contain exactly one document, with known fields and no aliases. A stored `total` is rejected; totals are calculated from work items.
 - The embedded Go fonts support Latin, Greek, and Cyrillic text. Unsupported characters and content exceeding one page produce a field-specific error.
 
-Required profile fields and the full data model are defined in [`docs/implementation-plan.md`](docs/implementation-plan.md).
+Required profile fields and the full data model are defined in [`docs/design.md`](docs/design.md).
 
 ## Development
 
@@ -84,7 +86,7 @@ gofmt -w .
 go test ./...
 ```
 
-PDF integration tests also check extracted text and page dimensions when Poppler's `pdfinfo` and `pdftotext` are installed. Generated PDFs are ignored by Git.
+PDF integration tests also check extracted text and page dimensions when Poppler's `pdfinfo` and `pdftotext` are installed. Generated PDFs are ignored by Git, except for the checked-in example.
 
 Optional `issuer.bank.correspondent_bank.account` appears in the PDF. Use a quoted string (for example, `"000123456789"`) to preserve leading zeros.
 

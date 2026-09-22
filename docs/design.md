@@ -1,4 +1,4 @@
-# Invoicy Implementation Plan
+# Invoicy Design
 
 ## Goal
 
@@ -20,7 +20,7 @@ The YAML files are the source of truth. Generated PDFs are disposable artifacts 
 │   ├── invoice/
 │   └── render/
 ├── docs/
-│   └── implementation-plan.md
+│   └── design.md
 ├── AGENTS.md
 ├── go.mod
 └── README.md
@@ -251,7 +251,7 @@ The application includes tests for:
 - successful PDF generation;
 - rejection when content exceeds one page.
 
-A checked-in example profile and invoice specification will act as fixtures. Generated PDF files should not be committed unless a visual regression workflow is introduced later.
+A checked-in example profile and invoice specification will act as fixtures. The demonstration PDF at `examples/output/INV-2026-09--01.pdf` is checked in to preview the result without installing the CLI. Update it when the example or layout changes; other generated PDFs are ignored.
 
 ### Completion Criteria
 
