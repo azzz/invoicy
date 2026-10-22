@@ -186,10 +186,6 @@ func TestTemplate(t *testing.T) {
 	if _, err := os.Stat(invalid); !os.IsNotExist(err) {
 		t.Fatalf("invalid output exists: %v", err)
 	}
-	entries, err := filepath.Glob(filepath.Join(root, "invoices/.invoicy-*"))
-	if err != nil || len(entries) != 0 {
-		t.Fatalf("temporary files left: %v %v", entries, err)
-	}
 	custom, err := New(root, profile, "INV-2027-01/02", now)
 	if err != nil || custom.Number != "INV-2027-01/02" {
 		t.Fatalf("override: %+v %v", custom, err)
@@ -289,8 +285,13 @@ func TestSignatureDefaultsAndResolution(t *testing.T) {
 	if err := WriteSpecification(specPath, s); err != nil {
 		t.Fatal(err)
 	}
+	// Resolution returns paths with symlinks evaluated, e.g. /var -> /private/var on macOS.
+	wantSignature, err := filepath.EvalSymlinks(signaturePath)
+	if err != nil {
+		t.Fatal(err)
+	}
 	inv, err := Load(root, specPath)
-	if err != nil || inv.SignatureSource != signaturePath {
+	if err != nil || inv.SignatureSource != wantSignature {
 		t.Fatalf("signature resolution: %+v %v", inv, err)
 	}
 	// A missing profile default must not affect an invoice with its own signature.

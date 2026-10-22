@@ -171,7 +171,7 @@ func run(args []string, root string, now time.Time, out io.Writer) error {
 	if err != nil {
 		return err
 	}
-	if err := invoice.WriteAtomic(output, data, true); err != nil {
+	if err := invoice.WriteFile(output, data, true); err != nil {
 		return err
 	}
 	_, err = fmt.Fprintln(out, o.output)

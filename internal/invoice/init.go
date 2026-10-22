@@ -2,7 +2,9 @@ package invoice
 
 import (
 	"embed"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 )
@@ -33,7 +35,7 @@ func Init(root string) error {
 		if err != nil {
 			return err
 		}
-		if err := WriteAtomic(path, data, false); err != nil && !os.IsExist(err) {
+		if err := WriteFile(path, data, false); err != nil && !errors.Is(err, fs.ErrExist) {
 			return err
 		}
 	}

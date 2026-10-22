@@ -52,7 +52,7 @@ invoicy render invoices/invoice-2026-09--01.yml
 | `invoicy init` | Creates `profiles/profiles.yml`, `invoices/invoice.yml`, a short `README.md`, and `output/`. Existing contents are preserved. |
 | `invoicy new PROFILE [--number NUMBER] [--output FILE]` | Copies profile defaults into a new specification. Uses the local date and `INV-YYYY-MM/01` by default. Never replaces an existing file. |
 | `invoicy validate SPECIFICATION` | Validates the specification, profile, font coverage, and one-page layout. Prints the calculated total. |
-| `invoicy render SPECIFICATION [--output FILE]` | Validates and atomically writes a PDF. An existing PDF at the output path is replaced only after successful rendering. |
+| `invoicy render SPECIFICATION [--output FILE]` | Validates and writes a PDF. An existing PDF at the output path is replaced only after successful rendering. |
 | `invoicy --help` | Prints usage. |
 
 Options work before or after the input path. `--output=FILE` and `--number=NUMBER` are also accepted. Use `--` before an input path that starts with a hyphen. Errors go to stderr and return exit code 1.

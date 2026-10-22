@@ -176,7 +176,7 @@ By default, `new` uses the local current date for `date`, generates `INV-{YYYY}-
 
 The command copies every profile `default_works` item into the specification's `works` list without changing descriptions or amounts and without adding or merging items. The generated specification must pass the same validation as an input accepted by `validate`.
 
-`new` requires the output parent directory to exist. It returns an error instead of replacing an existing file. The completed YAML is written atomically so a failed operation does not leave a partial specification.
+`new` requires the output parent directory to exist. It returns an error instead of replacing an existing file. If writing fails, `new` removes the partial file.
 
 ### Validation
 
