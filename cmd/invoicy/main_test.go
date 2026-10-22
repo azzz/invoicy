@@ -159,7 +159,7 @@ func TestArguments(t *testing.T) {
 
 func TestInstalledBinary(t *testing.T) {
 	binDir := t.TempDir()
-	install := exec.Command("go", "install", ".")
+	install := exec.CommandContext(t.Context(), "go", "install", ".")
 	install.Env = append(os.Environ(), "GOBIN="+binDir)
 	if out, err := install.CombinedOutput(); err != nil {
 		t.Fatalf("install: %v\n%s", err, out)
@@ -167,7 +167,7 @@ func TestInstalledBinary(t *testing.T) {
 	root := t.TempDir()
 	binary := filepath.Join(binDir, "invoicy")
 	call := func(args ...string) ([]byte, error) {
-		cmd := exec.Command(binary, args...)
+		cmd := exec.CommandContext(t.Context(), binary, args...)
 		cmd.Dir = root
 		return cmd.CombinedOutput()
 	}

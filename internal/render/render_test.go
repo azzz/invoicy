@@ -46,14 +46,14 @@ func TestPDF(t *testing.T) {
 	if err := os.WriteFile(path, data, 0600); err != nil {
 		t.Fatal(err)
 	}
-	info, err := exec.Command("pdfinfo", path).CombinedOutput()
+	info, err := exec.CommandContext(t.Context(), "pdfinfo", path).CombinedOutput()
 	if err != nil {
 		t.Fatalf("pdfinfo: %s: %v", info, err)
 	}
 	if !regexp.MustCompile(`Pages:\s+1\b`).Match(info) || !bytes.Contains(info, []byte("(A4)")) {
 		t.Fatalf("unexpected page: %s", info)
 	}
-	text, err := exec.Command("pdftotext", "-layout", path, "-").CombinedOutput()
+	text, err := exec.CommandContext(t.Context(), "pdftotext", "-layout", path, "-").CombinedOutput()
 	if err != nil {
 		t.Fatalf("pdftotext: %s: %v", text, err)
 	}
@@ -78,7 +78,7 @@ func TestPDF(t *testing.T) {
 	if err := os.WriteFile(path, second, 0600); err != nil {
 		t.Fatal(err)
 	}
-	secondText, err := exec.Command("pdftotext", "-layout", path, "-").CombinedOutput()
+	secondText, err := exec.CommandContext(t.Context(), "pdftotext", "-layout", path, "-").CombinedOutput()
 	if err != nil || !bytes.Equal(text, secondText) {
 		t.Fatalf("rerender changed invoice content: %v", err)
 	}
@@ -209,7 +209,7 @@ func TestSignaturePlaceholder(t *testing.T) {
 	if err := os.WriteFile(path, data, 0600); err != nil {
 		t.Fatal(err)
 	}
-	text, err := exec.Command("pdftotext", "-layout", path, "-").CombinedOutput()
+	text, err := exec.CommandContext(t.Context(), "pdftotext", "-layout", path, "-").CombinedOutput()
 	if err != nil {
 		t.Fatal(err)
 	}

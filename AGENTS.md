@@ -17,6 +17,7 @@ profiles          Immutable issuer/customer profiles and default work items
 invoices          Historical invoice specifications
 output            Generated PDF files
 docs              Design and implementation documentation
+scripts           Development scripts, including the linter runner
 ```
 
 ## Core Rules
@@ -33,9 +34,12 @@ docs              Design and implementation documentation
 
 ## Verification
 
-Run formatting and tests before completing a change:
+Run formatting, the linter, and tests before completing a change:
 
 ```bash
 gofmt -w .
+just lint
 go test ./...
 ```
+
+`just lint` runs golangci-lint with `.golangci.yml`. `scripts/lint.sh` downloads the pinned version into `tools/` on first run.

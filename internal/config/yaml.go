@@ -2,6 +2,7 @@ package config
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -28,7 +29,7 @@ func ReadYAML(path string, value any) error {
 		return fmt.Errorf("%s: YAML: %w", path, err)
 	}
 	var extra any
-	if err := d.Decode(&extra); err != io.EOF {
+	if err := d.Decode(&extra); !errors.Is(err, io.EOF) {
 		if err == nil {
 			err = fmt.Errorf("expected exactly one YAML document")
 		}
