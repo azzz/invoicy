@@ -12,6 +12,14 @@ import (
 	"github.com/azzz/invoicy/internal/invoice"
 )
 
+// TestMain keeps the developer's INVOICY_* variables (for example from direnv)
+// from leaking into tests, including the installed binary started by one of them.
+func TestMain(m *testing.M) {
+	os.Unsetenv("INVOICY_WORKSPACE_DIR")
+	os.Unsetenv("INVOICY_DEFAULT_PROFILE")
+	os.Exit(m.Run())
+}
+
 var fixedDate = time.Date(2026, 9, 21, 12, 0, 0, 0, time.UTC)
 
 func cliWorkspace(t *testing.T) string {
@@ -235,5 +243,95 @@ func TestSignatureValidationBeforeWriting(t *testing.T) {
 		if err != nil || !bytes.Equal(before, after) {
 			t.Fatalf("changed %s: %v", destination, err)
 		}
+	}
+}
+
+func TestEnvSettings(t *testing.T) {
+	t.Setenv("INVOICY_DEFAULT_PROFILE", "")
+	t.Setenv("INVOICY_WORKSPACE_DIR", "")
+	root := cliWorkspace(t)
+	if err := run([]string{"new"}, root, fixedDate, &bytes.Buffer{}); err == nil || !strings.Contains(err.Error(), "profile") {
+		t.Fatalf("new without any profile: %v", err)
+	}
+	t.Setenv("INVOICY_DEFAULT_PROFILE", "example")
+	var out bytes.Buffer
+	if err := run([]string{"new"}, root, fixedDate, &out); err != nil || !strings.Contains(out.String(), "invoices/invoice-2026-09--01.yml") {
+		t.Fatalf("profile name not resolved in profiles dir: %q, %v", out.String(), err)
+	}
+	t.Setenv("INVOICY_DEFAULT_PROFILE", "profiles/missing.yml")
+	if err := run([]string{"new", "--number=INV-2026-09/02"}, root, fixedDate, &bytes.Buffer{}); err == nil || !strings.Contains(err.Error(), "missing.yml") {
+		t.Fatalf("env profile ignored: %v", err)
+	}
+	if err := run([]string{"new", "profiles/example.yml", "--number=INV-2026-09/02"}, root, fixedDate, &bytes.Buffer{}); err != nil {
+		t.Fatalf("argument must beat env: %v", err)
+	}
+}
+
+func TestWorkspace(t *testing.T) {
+	t.Setenv("INVOICY_DEFAULT_PROFILE", "")
+	cwd, ws, other := t.TempDir(), filepath.Join(t.TempDir(), "ws"), filepath.Join(t.TempDir(), "other")
+
+	// The environment variable creates and uses a workspace anywhere on disk.
+	t.Setenv("INVOICY_WORKSPACE_DIR", ws)
+	if err := run([]string{"init"}, cwd, fixedDate, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"profiles/profiles.yml", "invoices/invoice.yml", "output"} {
+		if _, err := os.Stat(filepath.Join(ws, name)); err != nil {
+			t.Fatalf("init did not use the workspace: %v", err)
+		}
+	}
+	if entries, err := os.ReadDir(cwd); err != nil || len(entries) != 0 {
+		t.Fatalf("init wrote to the current directory: %v %v", entries, err)
+	}
+	data, err := os.ReadFile("../../examples/profiles/example-2026.yml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(ws, "profiles/mario.yml"), data, 0600); err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	if err := run([]string{"new", "mario"}, cwd, fixedDate, &out); err != nil || !strings.Contains(out.String(), "invoices/invoice-2026-09--01.yml") {
+		t.Fatalf("new: %q, %v", out.String(), err)
+	}
+	if err := run([]string{"render", "invoices/invoice-2026-09--01.yml"}, cwd, fixedDate, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(ws, "output/INV-2026-09--01.pdf")); err != nil {
+		t.Fatalf("PDF not in workspace output: %v", err)
+	}
+
+	// The flag beats the environment, and a relative workspace is relative to the current directory.
+	if err := run([]string{"init", "--workspace", "other"}, filepath.Dir(other), fixedDate, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(other, "profiles/profiles.yml")); err != nil {
+		t.Fatalf("flag ignored: %v", err)
+	}
+
+	// Without either, the current directory is the workspace.
+	t.Setenv("INVOICY_WORKSPACE_DIR", "")
+	plain := t.TempDir()
+	if err := run([]string{"init"}, plain, fixedDate, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(plain, "invoices/invoice.yml")); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestHelpText(t *testing.T) {
+	plain := helpText(false)
+	if strings.Contains(plain, "\x1b") {
+		t.Fatal("plain help contains ANSI codes")
+	}
+	for _, want := range []string{"Usage:", "Commands:", "Environment:", "Examples:", "INVOICE_FILE", "PDF_FILE", "--number NUMBER", "--output INVOICE_FILE", "--output PDF_FILE"} {
+		if !strings.Contains(plain, want) {
+			t.Errorf("help is missing %q", want)
+		}
+	}
+	if !strings.Contains(helpText(true), "\x1b[1m") {
+		t.Fatal("colored help has no styling")
 	}
 }

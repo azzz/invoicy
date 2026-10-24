@@ -16,12 +16,22 @@ type Specification struct {
 	Number    string        `yaml:"number"`
 	Date      string        `yaml:"date"`
 	Signature string        `yaml:"signature,omitempty"`
+	Note      string        `yaml:"note,omitempty"`
 	Works     []config.Work `yaml:"works"`
 }
 
 // SignatureIsImage distinguishes PNG paths from literal signature placeholders.
 func (s Specification) SignatureIsImage() bool {
 	return strings.EqualFold(filepath.Ext(s.Signature), ".png")
+}
+
+// SignaturePath maps a bare image name such as "mario.png" to the signatures
+// directory; values containing a path separator stay workspace-relative paths.
+func SignaturePath(signature string) string {
+	if strings.ContainsAny(signature, `/\`) {
+		return signature
+	}
+	return filepath.Join(config.SignaturesDir, signature)
 }
 
 // Invoice combines a validated specification, profile, and calculated total.
@@ -98,6 +108,9 @@ func (s Specification) Validate() (int64, error) {
 	if err := config.Text("signature", s.Signature); err != nil {
 		return 0, err
 	}
+	if err := config.Text("note", s.Note); err != nil {
+		return 0, err
+	}
 	return config.Total(s.Works, "works")
 }
 
@@ -130,7 +143,7 @@ func Resolve(root, source string, s Specification) (*Invoice, error) {
 	}
 	signaturePath := ""
 	if s.SignatureIsImage() {
-		signaturePath, err = resolvePath(root, s.Signature, "signature")
+		signaturePath, err = resolvePath(root, SignaturePath(s.Signature), "signature")
 		if err != nil {
 			return nil, fmt.Errorf("%s: %w", source, err)
 		}

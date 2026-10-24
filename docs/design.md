@@ -32,19 +32,20 @@ Runtime data does not depend on the source repository. A user initializes a work
 invoicy init
 ```
 
-The command creates this structure relative to the current working directory:
+The command creates this structure in the workspace (the current working directory unless `--workspace` or `INVOICY_WORKSPACE_DIR` is set):
 
 ```text
 .
 ├── profiles/profiles.yml
 ├── invoices/invoice.yml
 ├── README.md
-└── output/
+├── output/
+└── signatures/
 ```
 
 `init` succeeds when any of these directories already exist and leaves their contents unchanged. It returns an error when one of the paths exists but is not a directory. It creates an example profile at `profiles/profiles.yml`, an invoice specification at `invoices/invoice.yml`, and a short `README.md` with commands and YAML examples. These templates are embedded in the binary. Existing files are never replaced.
 
-`profiles/`, `invoices/`, and `output/` are the default workspace locations, not hard requirements. CLI options allow callers to override input and output paths.
+`init` also creates an empty `signatures/` directory for signature images. `profiles/`, `invoices/`, `output/`, and `signatures/` are fixed subdirectories of the workspace; CLI options allow callers to override input and output file paths.
 
 ## Data Model
 
@@ -84,7 +85,7 @@ customer:
 
 currency: EUR
 
-# Optional: PNG path (profiles/signature.png), manual placeholder ("________________"), or empty.
+# Optional: PNG name from signatures/ (mario.png), manual placeholder ("________________"), or empty.
 default_signature: ""
 
 default_works:
@@ -107,7 +108,8 @@ profile: profiles/companyname-2026.yml
 
 number: INV-2026-09/01
 date: 2026-09-21
-signature: "" # PNG path or manual placeholder; empty or omitted hides the signature.
+signature: "" # PNG name from signatures/ (mario.png), manual placeholder, or empty to hide it.
+note: "" # Optional free-text note; empty or omitted hides it.
 
 works:
   - description: Software development and consulting
@@ -118,11 +120,13 @@ works:
     amount: "300.00"
 ```
 
-`profile` is a relative path resolved from the command's current working directory, not from the invoice specification's directory. Nested paths such as `profiles/customers/companyname-2026.yml` are supported. Absolute paths and relative paths that resolve outside the working directory are rejected so the workspace remains self-contained.
+`profile` is a relative path resolved from the workspace directory (the current working directory by default), not from the invoice specification's directory. Nested paths such as `profiles/customers/companyname-2026.yml` are supported. Absolute paths and relative paths that resolve outside the working directory are rejected so the workspace remains self-contained.
 
 The `works` list is final and is the only source of invoice line items during validation and rendering. The template command copies `default_works` into `works`, after which the two lists are independent. Editing a generated specification never changes its profile, and later profile changes never alter an existing specification.
 
-The optional profile `default_signature` is copied verbatim into the invoice's `signature` by `new`, just like work defaults. Validation and rendering never fall back to the profile default. An empty or omitted invoice `signature` hides the signature block. A value ending in `.png` (case-insensitive) is a PNG path resolved from the working directory with the same workspace confinement as profile paths, including symlinks. Missing or invalid images are errors before writing output. Transparent PNGs are supported and scaled proportionally to fit 50 × 20 mm. Any other nonempty string is printed verbatim after `Signature:` as a manual-signature placeholder, for example `"________________"`. Both text and image signatures count toward the single-page limit. Keep referenced signature images immutable and use versioned filenames for changes. Only the path is copied, not the image bytes. This is an image, not a cryptographic digital signature.
+The optional profile `default_signature` is copied verbatim into the invoice's `signature` by `new`, just like work defaults. Validation and rendering never fall back to the profile default. An empty or omitted invoice `signature` hides the signature block. A value ending in `.png` (case-insensitive) is a PNG image. A bare file name such as `mario.png` is read from the workspace `signatures/` directory; a value containing a path separator is a path relative to the workspace and is used as written. Both get the same workspace confinement as profile paths, including symlinks. Missing or invalid images are errors before writing output. Transparent PNGs are supported and scaled proportionally to fit 50 × 20 mm. Any other nonempty string is printed verbatim after `Signature:` as a manual-signature placeholder, for example `"________________"`. Both text and image signatures count toward the single-page limit. Keep referenced signature images immutable and use versioned filenames for changes. Only the path is copied, not the image bytes. This is an image, not a cryptographic digital signature.
+
+The optional `note` is free text printed on the invoice as `Note: ...` below the invoice date. It is not copied from the profile, may contain newlines, and counts toward the single-page limit. An empty or omitted `note` hides it.
 
 The total is derived from `works` and is never stored in the specification. Amounts are quoted decimal strings so the application can parse them without binary floating-point rounding.
 
@@ -155,7 +159,7 @@ invoicy render invoices/invoice-2026-09--01.yml
 
 `validate` loads and validates both the invoice specification and its profile without creating a PDF.
 
-`render` performs the same validation and writes a PDF. It resolves the specification's `profile` path from the current working directory and writes the PDF under `output/` in that directory by default. Moving the invoice specification does not change which profile it references, but running the command from another directory does.
+`render` performs the same validation and writes a PDF. It resolves the specification's `profile` path from the workspace and writes the PDF under the workspace's `output/` by default. Moving the invoice specification does not change which profile it references, but running the command from another directory does.
 
 Useful overrides:
 
@@ -168,9 +172,15 @@ invoicy render invoices/invoice-2026-09--01.yml \
   --output output/custom-name.pdf
 ```
 
+### Workspace and Environment Defaults
+
+There is no configuration file. All data lives in one workspace directory containing the fixed subdirectories `profiles/`, `invoices/`, `output/`, and `signatures/`. The workspace is the `--workspace DIR` flag, else `INVOICY_WORKSPACE_DIR`, else the current working directory. A relative value is relative to the current working directory. Every relative path, including `profile` paths, invoice file arguments, and `--output`, is resolved from the workspace, and the confinement rule for `profile` and signature paths applies to the workspace. Moving the workspace therefore moves everything with it, and running the command from another directory does not change which profile an invoice references.
+
+`INVOICY_DEFAULT_PROFILE` is used by `new` when no `PROFILE` argument is given. A profile value without `/` or `.` is a name resolved as `profiles/<name>.yml`. `init` creates the workspace directory when it does not exist. Precedence is command-line argument or flag, then environment, then built-in default. `validate` does not use `INVOICY_DEFAULT_PROFILE`.
+
 ### Specification Template Generation
 
-`new` accepts a profile path relative to the current working directory. It validates the profile before creating a specification and writes the same relative path into the specification's `profile` field.
+`new` accepts a profile path relative to the workspace. It validates the profile before creating a specification and writes the same relative path into the specification's `profile` field.
 
 By default, `new` uses the local current date for `date`, generates `INV-{YYYY}-{MM}/01` for `number`, and derives `invoices/invoice-{YYYY}-{MM}--01.yml` as the output path. The optional `--number` flag replaces the generated number and changes the derived filename accordingly. The optional `--output` flag replaces that derived path. The command does not inspect existing invoices or increment the index.
 
@@ -237,7 +247,7 @@ The application includes tests for:
 - IBAN and SWIFT/BIC validation;
 - valid and invalid invoice specification parsing;
 - exact decimal addition and display formatting;
-- profile path resolution from the current working directory;
+- profile path resolution from the workspace directory;
 - nested profile paths and rejection of absolute or workspace-escaping paths;
 - profile resolution that does not depend on the invoice specification's directory;
 - specification template defaults using a fixed local date;

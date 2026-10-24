@@ -1,7 +1,8 @@
 profile: profiles/example-2026.yml
 number: INV-2026-09/01
 date: 2026-09-21
-signature: "" # PNG path or manual placeholder; empty or omitted hides the signature.
+signature: "" # PNG name from signatures/ (mario.png), manual placeholder, or empty to hide it.
+note: "" # Optional free-text note printed on the invoice; empty or omitted hides it.
 works:
   - description: Software development and consulting
     amount: "2293.00"
