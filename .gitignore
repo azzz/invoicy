@@ -1,5 +1,24 @@
+# Binary produced by `go build ./cmd/invoicy` in the repo root.
 /invoicy
+
+# Output of `just build`.
+/bin/
+
+# Local direnv environment (INVOICY_* defaults), specific to each machine.
+/.envrc
+
+# Linter binary downloaded by scripts/lint.sh.
 /tools/
 
+# Personal workspace data: issuer/customer profiles, invoice specifications, and
+# generated PDFs. Only the fictional files under examples/ are tracked.
+/profiles/
+/invoices/
+/output/
+
+# Generated PDFs, except the checked-in demonstration invoice.
 *.pdf
 !/examples/output/INV-2026-09--01.pdf
+
+# Shared editor settings (overrides the global ignore for this one file).
+!/.vscode/settings.json

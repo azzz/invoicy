@@ -24,7 +24,7 @@ scripts           Development scripts, including the linter runner
 
 - Treat YAML files as the source of truth and PDFs as generated artifacts.
 - Do not modify a profile after an invoice references it; create a versioned profile instead.
-- Resolve profile paths from the command's current working directory, not from the invoice specification's directory.
+- Resolve profile paths from the workspace directory (`--workspace`, `INVOICY_WORKSPACE_DIR`, else the current working directory), not from the invoice specification's directory.
 - Copy `default_works` into new invoice specifications. Never merge defaults during validation or rendering.
 - Calculate totals from `works`; do not persist a total in YAML.
 - Do not use binary floating-point types for money.

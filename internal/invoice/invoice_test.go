@@ -56,7 +56,7 @@ func TestInit(t *testing.T) {
 		}
 	}
 
-	for _, name := range []string{"profiles", "invoices", "output"} {
+	for _, name := range []string{"profiles", "invoices", "output", "signatures"} {
 		path := filepath.Join(root, name, "keep")
 		if err := os.WriteFile(path, []byte("untouched"), 0600); err != nil {
 			t.Fatal(err)
@@ -65,7 +65,7 @@ func TestInit(t *testing.T) {
 	if err := Init(root); err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"profiles", "invoices", "output"} {
+	for _, name := range []string{"profiles", "invoices", "output", "signatures"} {
 		data, err := os.ReadFile(filepath.Join(root, name, "keep"))
 		if err != nil || string(data) != "untouched" {
 			t.Fatalf("%s changed: %q %v", name, data, err)
@@ -203,12 +203,13 @@ func TestSpecificationValidation(t *testing.T) {
 		{"date invalid", "date", func(s *Specification) { s.Date = "2026-02-29" }},
 		{"date malformed", "date", func(s *Specification) { s.Date = "21/09/2026" }},
 		{"profile missing", "profile", func(s *Specification) { s.Profile = "" }},
+		{"note control character", "note", func(s *Specification) { s.Note = "bad\x07note" }},
 		{"works empty", "works", func(s *Specification) { s.Works = nil }},
 		{"description empty", "works[0].description", func(s *Specification) { s.Works[0].Description = "" }},
 		{"amount invalid", "works[0].amount", func(s *Specification) { s.Works[0].Amount = "-1" }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			s := Specification{"profiles/example.yml", "INV-2026-09/01", "2026-09-21", "", []config.Work{{Description: "Development", Amount: "1.20"}}}
+			s := Specification{"profiles/example.yml", "INV-2026-09/01", "2026-09-21", "", "", []config.Work{{Description: "Development", Amount: "1.20"}}}
 			tc.change(&s)
 			if _, err := s.Validate(); err == nil || !strings.Contains(err.Error(), tc.field) {
 				t.Fatalf("got %v, want %s", err, tc.field)
@@ -319,6 +320,32 @@ func TestSignatureDefaultsAndResolution(t *testing.T) {
 		if _, err := Resolve(root, "invoice.yml", s); err == nil || !strings.Contains(err.Error(), "signature") {
 			t.Fatalf("accepted %q: %v", bad, err)
 		}
+	}
+}
+
+func TestSignatureFromSignaturesDir(t *testing.T) {
+	root := workspace(t)
+	if err := os.MkdirAll(filepath.Join(root, "signatures"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "signatures/mario.png"), []byte("image validated by renderer"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	want, err := filepath.EvalSymlinks(filepath.Join(root, "signatures/mario.png"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := Specification{Profile: "profiles/example-2026.yml", Number: "INV-2026-09/01", Date: "2026-09-21", Signature: "mario.png", Works: []config.Work{{Description: "Development", Amount: "1.20"}}}
+	inv, err := Resolve(root, "invoice.yml", s)
+	if err != nil || inv.SignatureSource != want {
+		t.Fatalf("bare name not read from signatures/: %+v %v", inv, err)
+	}
+	s.Signature = "MARIO.PNG"
+	if _, err := Resolve(root, "invoice.yml", s); err == nil || !strings.Contains(err.Error(), "signature") {
+		t.Fatalf("missing bare name accepted: %v", err)
+	}
+	if got := SignaturePath("signatures/mario.png"); got != "signatures/mario.png" {
+		t.Fatalf("explicit path rewritten: %s", got)
 	}
 }
 

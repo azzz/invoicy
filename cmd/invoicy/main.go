@@ -14,17 +14,6 @@ import (
 	"github.com/azzz/invoicy/internal/render"
 )
 
-const usage = `Usage:
-  invoicy init
-  invoicy new PROFILE [--number NUMBER] [--output FILE]
-  invoicy validate SPECIFICATION
-  invoicy render SPECIFICATION [--output FILE]
-
-Profile paths are relative to the current working directory.
-new uses today's local date and INV-YYYY-MM/01 unless --number is given.
-Output parent directories must exist. new never replaces an existing file.
-`
-
 func main() {
 	root, err := os.Getwd()
 	if err == nil {
@@ -37,8 +26,8 @@ func main() {
 }
 
 type options struct {
-	input, number, output string
-	help                  bool
+	input, number, output, workspace string
+	help                             bool
 }
 
 func parse(command string, args []string) (options, error) {
@@ -57,7 +46,7 @@ func parse(command string, args []string) (options, error) {
 		}
 		if !positional && strings.HasPrefix(arg, "-") {
 			name, value, inline := strings.Cut(arg, "=")
-			if name != "--output" && name != "--number" {
+			if name != "--output" && name != "--number" && name != "--workspace" {
 				return o, fmt.Errorf("%s: unknown option %s", command, name)
 			}
 			if (name == "--number" && command != "new") || (name == "--output" && command != "new" && command != "render") {
@@ -77,10 +66,13 @@ func parse(command string, args []string) (options, error) {
 			if value == "" {
 				return o, fmt.Errorf("%s: %s must not be empty", command, name)
 			}
-			if name == "--output" {
+			switch name {
+			case "--output":
 				o.output = value
-			} else {
+			case "--number":
 				o.number = value
+			default:
+				o.workspace = value
 			}
 		} else {
 			if o.input != "" || command == "init" {
@@ -89,7 +81,7 @@ func parse(command string, args []string) (options, error) {
 			o.input = arg
 		}
 	}
-	if !o.help && command != "init" && o.input == "" {
+	if !o.help && command != "init" && command != "new" && o.input == "" {
 		return o, fmt.Errorf("%s: expected an input path", command)
 	}
 	return o, nil
@@ -101,7 +93,7 @@ func run(args []string, root string, now time.Time, out io.Writer) error {
 	}
 	command := args[0]
 	if command == "--help" || command == "-h" || command == "help" {
-		_, err := io.WriteString(out, usage)
+		_, err := io.WriteString(out, helpText(useColor(out)))
 		return err
 	}
 	if command != "init" && command != "new" && command != "validate" && command != "render" {
@@ -112,8 +104,22 @@ func run(args []string, root string, now time.Time, out io.Writer) error {
 		return err
 	}
 	if o.help {
-		_, err := io.WriteString(out, usage)
+		_, err := io.WriteString(out, helpText(useColor(out)))
 		return err
+	}
+	settings, err := config.SettingsFromEnv()
+	if err != nil {
+		return err
+	}
+	// The workspace is --workspace, else INVOICY_WORKSPACE_DIR, else the current
+	// directory. Every relative path below is resolved from it.
+	if o.workspace == "" {
+		o.workspace = settings.WorkspaceDir
+	}
+	if o.workspace != "" && !filepath.IsAbs(o.workspace) {
+		root = filepath.Join(root, o.workspace)
+	} else if o.workspace != "" {
+		root = o.workspace
 	}
 	pathInRoot := func(path string) string {
 		if filepath.IsAbs(path) {
@@ -125,16 +131,26 @@ func run(args []string, root string, now time.Time, out io.Writer) error {
 		if err := invoice.Init(root); err != nil {
 			return err
 		}
-		_, err := fmt.Fprintln(out, "Initialized workspace with example YAML files and README.md (existing files preserved)")
+		_, err := fmt.Fprintln(out, "Initialized workspace (profiles, invoices, output, signatures) with example YAML files and README.md (existing files preserved)")
 		return err
 	}
 	if command == "new" {
+		if o.input == "" {
+			o.input = settings.DefaultProfile
+		}
+		if o.input == "" {
+			return errors.New("new: expected a profile path (argument or INVOICY_DEFAULT_PROFILE)")
+		}
+		// A bare name such as "mario" means <profiles dir>/mario.yml.
+		if !strings.ContainsAny(o.input, `/\.`) {
+			o.input = filepath.Join(config.ProfilesDir, o.input+".yml")
+		}
 		s, err := invoice.New(root, o.input, o.number, now)
 		if err != nil {
 			return err
 		}
 		if o.output == "" {
-			o.output = filepath.Join("invoices", invoice.Filename(s.Number, ".yml"))
+			o.output = filepath.Join(config.InvoicesDir, invoice.Filename(s.Number, ".yml"))
 		}
 		inv, err := invoice.Resolve(root, o.output, s)
 		if err != nil {
@@ -161,7 +177,7 @@ func run(args []string, root string, now time.Time, out io.Writer) error {
 		return err
 	}
 	if o.output == "" {
-		o.output = filepath.Join("output", invoice.PDFFilename(inv.Specification.Number))
+		o.output = filepath.Join(config.OutputDir, invoice.PDFFilename(inv.Specification.Number))
 	}
 	output := pathInRoot(o.output)
 	if err := protectSources(output, inv); err != nil {

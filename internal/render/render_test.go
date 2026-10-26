@@ -217,3 +217,37 @@ func TestSignaturePlaceholder(t *testing.T) {
 		t.Fatalf("missing placeholder: %s", text)
 	}
 }
+
+func TestNote(t *testing.T) {
+	inv := example(t)
+	inv.Specification.Note = "Payment due within 14 days."
+	if err := Check(inv); err != nil {
+		t.Fatal(err)
+	}
+	data, err := PDF(inv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	inv.Specification.Note = strings.Repeat("long note ", 1000)
+	if err := Check(inv); err == nil || !strings.Contains(err.Error(), "note") {
+		t.Fatalf("oversized note accepted: %v", err)
+	}
+	inv.Specification.Note = "Unsupported 😀"
+	if err := Check(inv); err == nil || !strings.Contains(err.Error(), "note") {
+		t.Fatalf("unsupported note accepted: %v", err)
+	}
+	if _, err := exec.LookPath("pdftotext"); err != nil {
+		t.Skip("Poppler not installed")
+	}
+	path := filepath.Join(t.TempDir(), "note.pdf")
+	if err := os.WriteFile(path, data, 0600); err != nil {
+		t.Fatal(err)
+	}
+	text, err := exec.CommandContext(t.Context(), "pdftotext", "-layout", path, "-").CombinedOutput()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(text, []byte("Note: Payment due within 14 days.")) {
+		t.Fatalf("missing note: %s", text)
+	}
+}

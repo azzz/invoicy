@@ -116,6 +116,10 @@ func build(inv *invoice.Invoice) (*fpdf.Fpdf, error) {
 	l.row(inv.Source, "works.total", "TOTAL", profile.Currency+" "+config.FormatMoney(inv.Total), true)
 	l.y += 8
 	text(inv.Source, "date", "Invoice date: "+s.Date, false, 10, 6)
+	if strings.TrimSpace(s.Note) != "" {
+		l.y += 4
+		text(inv.Source, "note", "Note: "+s.Note, false, 9, 4.5)
+	}
 	if s.Signature != "" {
 		l.signature(inv)
 	}

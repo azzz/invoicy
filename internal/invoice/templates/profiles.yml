@@ -29,7 +29,7 @@ customer:
 
 currency: EUR
 
-# Optional: PNG path (profiles/signature.png), manual placeholder ("________________"), or empty.
+# Optional: PNG name from signatures/ (mario.png), manual placeholder ("________________"), or empty.
 default_signature: ""
 
 default_works:
