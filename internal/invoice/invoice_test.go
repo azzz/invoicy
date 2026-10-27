@@ -340,7 +340,7 @@ func TestSignatureFromSignaturesDir(t *testing.T) {
 	if err != nil || inv.SignatureSource != want {
 		t.Fatalf("bare name not read from signatures/: %+v %v", inv, err)
 	}
-	s.Signature = "MARIO.PNG"
+	s.Signature = "luigi.png"
 	if _, err := Resolve(root, "invoice.yml", s); err == nil || !strings.Contains(err.Error(), "signature") {
 		t.Fatalf("missing bare name accepted: %v", err)
 	}
